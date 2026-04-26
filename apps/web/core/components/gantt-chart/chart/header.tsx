@@ -5,7 +5,7 @@
  */
 
 import { observer } from "mobx-react";
-import { Expand, Shrink } from "lucide-react";
+import { Expand, Shrink, ZoomIn, ZoomOut } from "lucide-react";
 import { useTranslation } from "@plane/i18n";
 // plane
 import type { TGanttViews } from "@plane/types";
@@ -27,12 +27,23 @@ type Props = {
   loaderTitle: string;
   toggleFullScreenMode: () => void;
   showToday: boolean;
+  handleZoomIn?: () => void;
+  handleZoomOut?: () => void;
 };
 
 export const GanttChartHeader = observer(function GanttChartHeader(props: Props) {
   const { t } = useTranslation();
-  const { blockIds, fullScreenMode, handleChartView, handleToday, loaderTitle, toggleFullScreenMode, showToday } =
-    props;
+  const {
+    blockIds,
+    fullScreenMode,
+    handleChartView,
+    handleToday,
+    loaderTitle,
+    toggleFullScreenMode,
+    showToday,
+    handleZoomIn,
+    handleZoomOut,
+  } = props;
   // chart hook
   const { currentView } = useTimeLineChartStore();
 
@@ -49,8 +60,9 @@ export const GanttChartHeader = observer(function GanttChartHeader(props: Props)
 
       <div className="flex flex-wrap items-center gap-2">
         {VIEWS_LIST.map((chartView: any) => (
-          <div
+          <button
             key={chartView?.key}
+            type="button"
             className={cn(
               "cursor-pointer rounded-md bg-layer-transparent p-1 px-2 text-11 hover:bg-layer-transparent-hover",
               {
@@ -58,9 +70,10 @@ export const GanttChartHeader = observer(function GanttChartHeader(props: Props)
               }
             )}
             onClick={() => handleChartView(chartView?.key)}
+            aria-pressed={currentView === chartView?.key}
           >
             {t(chartView?.i18n_title)}
-          </div>
+          </button>
         ))}
       </div>
 
@@ -73,6 +86,23 @@ export const GanttChartHeader = observer(function GanttChartHeader(props: Props)
           {t("common.today")}
         </button>
       )}
+
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          className="rounded-md bg-layer-transparent p-1 transition-all hover:bg-layer-transparent-hover"
+          onClick={handleZoomOut}
+        >
+          <ZoomOut className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          className="rounded-md bg-layer-transparent p-1 transition-all hover:bg-layer-transparent-hover"
+          onClick={handleZoomIn}
+        >
+          <ZoomIn className="h-4 w-4" />
+        </button>
+      </div>
 
       <button
         type="button"

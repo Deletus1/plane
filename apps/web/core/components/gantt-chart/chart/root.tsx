@@ -53,6 +53,13 @@ const timelineViewHelpers = {
   quarter: quarterView,
 };
 
+// Move updateCurrentLeftScrollPosition to module scope to avoid recreating it on every render
+const updateCurrentLeftScrollPosition = (width: number) => {
+  const scrollContainer = document.querySelector("#gantt-container") as HTMLDivElement;
+  if (!scrollContainer) return;
+  scrollContainer.scrollLeft = width + scrollContainer?.scrollLeft;
+};
+
 export const ChartViewRoot = observer(function ChartViewRoot(props: ChartViewRootProps) {
   const {
     border,
@@ -90,6 +97,7 @@ export const ChartViewRoot = observer(function ChartViewRoot(props: ChartViewRoo
     updateCurrentViewData,
     updateRenderView,
     updateAllBlocksOnChartChangeWhileDragging,
+    recomputeBlockPositions,
   } = useTimeLineChartStore();
   const { data } = useUserProfile();
   const startOfWeek = data?.start_of_the_week;
@@ -152,13 +160,6 @@ export const ChartViewRoot = observer(function ChartViewRoot(props: ChartViewRoo
     setItemsContainerWidth(width + scrollContainer?.scrollLeft);
   };
 
-  const updateCurrentLeftScrollPosition = (width: number) => {
-    const scrollContainer = document.querySelector("#gantt-container") as HTMLDivElement;
-    if (!scrollContainer) return;
-
-    scrollContainer.scrollLeft = width + scrollContainer?.scrollLeft;
-  };
-
   const handleScrollToCurrentSelectedDate = (currentState: ChartDataType, date: Date) => {
     const scrollContainer = document.querySelector("#gantt-container") as HTMLDivElement;
     if (!scrollContainer) return;
@@ -176,6 +177,46 @@ export const ChartViewRoot = observer(function ChartViewRoot(props: ChartViewRoo
     scrollContainer.scrollLeft = scrollWidth;
   };
 
+  // Zoom configuration
+  const ZOOM_FACTOR = 1.2;
+  const MIN_DAY_WIDTH = 5;
+  const MAX_DAY_WIDTH = 200;
+
+  const handleZoom = (factor: number) => {
+    if (!currentViewData) return;
+
+    const newDayWidth = Math.max(
+      MIN_DAY_WIDTH,
+      Math.min(MAX_DAY_WIDTH, Math.round(currentViewData.data.dayWidth * factor))
+    );
+
+    const newViewData: ChartDataType = {
+      ...currentViewData,
+      data: { ...currentViewData.data, dayWidth: newDayWidth },
+    };
+
+    const currentViewHelpers = timelineViewHelpers[currentView];
+    const currentRender = currentViewHelpers.generateChart(
+      newViewData,
+      null,
+      newViewData.data.currentDate,
+      startOfWeek
+    );
+
+    if (currentRender.payload) {
+      updateCurrentViewData(currentRender.state);
+      updateCurrentView(currentView);
+      updateRenderView(currentRender.payload);
+      updateItemsContainerWidth(currentRender.scrollWidth);
+      setTimeout(() => {
+        handleScrollToCurrentSelectedDate(currentRender.state, currentRender.state.data.currentDate);
+      }, 50);
+
+      // Recompute block positions in the timeline store so block DOM positions and drag math stay in sync
+      recomputeBlockPositions();
+    }
+  };
+
   const portalContainer = document.getElementById("full-screen-portal") as HTMLElement;
 
   const content = (
@@ -191,6 +232,8 @@ export const ChartViewRoot = observer(function ChartViewRoot(props: ChartViewRoo
         toggleFullScreenMode={() => setFullScreenMode((prevData) => !prevData)}
         handleChartView={(key) => updateCurrentViewRenderPayload(null, key)}
         handleToday={handleToday}
+        handleZoomIn={() => handleZoom(ZOOM_FACTOR)}
+        handleZoomOut={() => handleZoom(1 / ZOOM_FACTOR)}
         loaderTitle={loaderTitle}
         showToday={showToday}
       />

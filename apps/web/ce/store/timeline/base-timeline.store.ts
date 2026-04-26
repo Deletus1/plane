@@ -68,6 +68,8 @@ export interface IBaseTimelineStore {
 
   getDateFromPositionOnGantt: (position: number, offsetDays: number) => Date | undefined;
   getPositionFromDateOnGantt: (date: string | Date, offSetWidth: number) => number | undefined;
+  // recompute positions for all blocks based on currentViewData (e.g., after changing dayWidth / zoom)
+  recomputeBlockPositions: () => void;
 }
 
 export class BaseTimeLineStore implements IBaseTimelineStore {
@@ -343,4 +345,25 @@ export class BaseTimeLineStore implements IBaseTimelineStore {
 
   // Dummy method to return if the current Block's dependency is being dragged
   getIsCurrentDependencyDragging = computedFn((_blockId: string) => false);
+
+  /**
+   * Recompute positions for all blocks based on currentViewData (e.g., after changing dayWidth / zoom)
+   */
+  recomputeBlockPositions = action(() => {
+    const ids = this.blockIds;
+    const viewData = this.currentViewData;
+    if (!ids || !viewData) return;
+
+    runInAction(() => {
+      ids.forEach((blockId) => {
+        const currBlock = this.blocksMap[blockId];
+        if (!currBlock) return;
+
+        const newPosition = getItemPositionWidth(viewData as ChartDataType, currBlock);
+        if (!newPosition) return;
+
+        set(this.blocksMap, [blockId, "position"], newPosition);
+      });
+    });
+  });
 }
